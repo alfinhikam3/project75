@@ -12,6 +12,8 @@ import {
   Divider
 } from '@mui/material';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import { 
   Bell, 
   Server, 
@@ -33,6 +35,8 @@ interface HeaderProps {
 const Header = ({ connected, isMobile, alertCount, clearAlerts }: HeaderProps) => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const { logout } = useAuth();
+  const navigate = useNavigate();
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -44,7 +48,6 @@ const Header = ({ connected, isMobile, alertCount, clearAlerts }: HeaderProps) =
 
   const handleRefresh = () => {
     setRefreshing(true);
-    // Simulate refresh - in a real app this would trigger data reload
     setTimeout(() => {
       setRefreshing(false);
       handleMenuClose();
@@ -55,6 +58,11 @@ const Header = ({ connected, isMobile, alertCount, clearAlerts }: HeaderProps) =
   const handleClearAlerts = () => {
     clearAlerts();
     handleMenuClose();
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
   };
 
   return (
@@ -160,7 +168,7 @@ const Header = ({ connected, isMobile, alertCount, clearAlerts }: HeaderProps) =
               <ListItemText primary="Settings" />
             </MenuItem>
             
-            <MenuItem onClick={handleMenuClose}>
+            <MenuItem onClick={handleLogout}>
               <ListItemIcon>
                 <LogOut size={18} />
               </ListItemIcon>

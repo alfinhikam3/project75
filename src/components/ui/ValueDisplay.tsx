@@ -9,10 +9,11 @@ interface ValueDisplayProps {
   icon?: ReactNode;
   subtitle?: string;
   timestamp?: string;
-  showTrend?: boolean; // New prop to control trend visibility
+  showTrend?: boolean;
+  type?: 'temperature' | 'humidity';
 }
 
-const ValueDisplay = ({ value, unit, status, icon, subtitle, timestamp, showTrend = false }: ValueDisplayProps) => {
+const ValueDisplay = ({ value, unit, status, icon, subtitle, timestamp, showTrend = false, type }: ValueDisplayProps) => {
   const [prevValue, setPrevValue] = useState<number>(typeof value === 'number' ? value : 0);
   const [trend, setTrend] = useState<'up' | 'down' | null>(null);
 
@@ -24,7 +25,6 @@ const ValueDisplay = ({ value, unit, status, icon, subtitle, timestamp, showTren
       setTrend(numValue > prevValue ? 'up' : 'down');
       setPrevValue(numValue);
 
-      // Reset trend after animation
       const timer = setTimeout(() => setTrend(null), 3000);
       return () => clearTimeout(timer);
     }
@@ -55,7 +55,10 @@ const ValueDisplay = ({ value, unit, status, icon, subtitle, timestamp, showTren
   };
 
   const getTrendColor = () => {
-    return trend === 'up' ? '#3f88f2' : '#ff5252';
+    if (trend === 'up') {
+      return type === 'humidity' ? '#ffb74d' : '#ff5252';
+    }
+    return '#3f88f2';
   };
 
   return (
@@ -73,7 +76,6 @@ const ValueDisplay = ({ value, unit, status, icon, subtitle, timestamp, showTren
         flexDirection: 'column',
       }}
     >
-      {/* Value with Trend Indicator */}
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
         {icon && <Box sx={{ mr: 1, color: getStatusColor() }}>{icon}</Box>}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -122,11 +124,10 @@ const ValueDisplay = ({ value, unit, status, icon, subtitle, timestamp, showTren
         </Box>
       </Box>
 
-      {/* Subtitle or timestamp */}
       {(subtitle || timestamp) && (
         <Box sx={{ mt: 'auto' }}>
           {subtitle && (
-            <Typography variant="body2\" color="text.secondary">
+            <Typography variant="body2" color="text.secondary">
               {subtitle}
             </Typography>
           )}
