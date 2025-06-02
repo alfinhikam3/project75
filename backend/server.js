@@ -4,6 +4,8 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import { createPool } from 'mysql2/promise';
 import dotenv from 'dotenv';
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
 
 // Load environment variables
 dotenv.config();
@@ -22,6 +24,11 @@ app.use(cors({
   credentials: true,
   optionsSuccessStatus: 204
 }));
+
+app.use(express.json());
+
+// JWT Secret
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
 // Configure Socket.IO with CORS
 const io = new Server(server, {
@@ -52,8 +59,8 @@ const createPoolWithRetry = async (retries = 5, delay = 5000) => {
         queueLimit: 0,
         enableKeepAlive: true,
         keepAliveInitialDelay: 0,
-        timezone: '+07:00', // Set timezone to WIB (UTC+7)
-        dateStrings: true // Return dates as strings in local format
+        timezone: '+07:00',
+        dateStrings: true
       });
 
       // Test the connection
@@ -82,8 +89,8 @@ const createAccessLogsPool = async () => {
     waitForConnections: true,
     connectionLimit: 5,
     queueLimit: 0,
-    timezone: '+07:00', // Set timezone to WIB (UTC+7)
-    dateStrings: true // Return dates as strings in local format
+    timezone: '+07:00',
+    dateStrings: true
   });
 };
 
@@ -113,6 +120,61 @@ async function checkDatabaseConnection() {
     return false;
   }
 }
+
+// Login endpoint
+app.post('/api/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+
+    const [users] = await pool.query(
+      'SELECT * FROM users WHERE username = ?',
+      [username]
+    );
+
+    if (users.length === 0) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    const user = users[0];
+    const isValidPassword = await bcrypt.compare(password, user.password);
+
+    if (!isValidPassword) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    const token = jwt.sign(
+      { userId: user.id, username: user.username },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    res.json({ token });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Middleware to verify JWT token
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ error: 'No token provided' });
+  }
+
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) {
+      return res.status(403).json({ error: 'Invalid token' });
+    }
+    req.user = user;
+    next();
+  });
+};
+
+// Protected routes
+app.use('/api/protected', authenticateToken);
 
 // API routes
 app.get('/', (req, res) => {
